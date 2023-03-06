@@ -3,3 +3,58 @@
 
     https://jupyterlab.readthedocs.io/en/stable/developer/css.html
 */
+
+
+
+.form-group-inline {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    justify-content: space-around;
+}
+
+.form-group-inline fieldset {
+    width: 100%;
+}
+
+.form-group-inline label {
+    margin: 0.5em 1em 0.5em 0;
+}
+
+.form-group-inline input {
+    vertical-align: middle;
+    margin: 0.5em 1em 0.5em 0;
+    padding: 1em;
+    background-color: #fff;
+    border: 1px solid #ddd;
+}
+
+/* Add responsiveness - display the form controls vertically instead of horizontally on screens that are less than 800px wide */
+@media (max-width: 800px) {
+    .form-group-inline input {
+        margin: 1em 0;
+    }
+
+    .form-group-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+.fieldset {
+    border: 1px solid black;
+    padding: 0.5em;
+    margin: 0.75em 0.25em 0.25em 0.25em;
+}
+
+summary {
+    width: fit-content;
+    position: relative;
+    top: -1.25em;
+    padding: 0 2px;
+    background-color: white;
+}
+
+input:invalid {
+    background-color: lightpink;
+}

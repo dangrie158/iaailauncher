@@ -12,6 +12,7 @@ module.exports = {
   },
   plugins: ['@typescript-eslint'],
   rules: {
+    '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/naming-convention': [
       'error',
       {
@@ -29,9 +30,10 @@ module.exports = {
     '@typescript-eslint/no-use-before-define': 'off',
     '@typescript-eslint/quotes': [
       'error',
-      'single',
+      'double',
       { avoidEscape: true, allowTemplateLiterals: false }
     ],
+    'prettier/prettier': ['error', { singleQuote: false }],
     curly: ['error', 'all'],
     eqeqeq: 'error',
     'prefer-arrow-callback': 'error'
