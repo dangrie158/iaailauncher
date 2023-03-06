@@ -1,6 +1,11 @@
 import React from "react";
 import { ReactWidget } from "@jupyterlab/apputils";
-import { ReactElement, JSXElementConstructor } from "react";
+import { ReactElement } from "react";
+
+const AVAILABLE_PARTITIONS = {
+  cpu: "CPU",
+  gpu: "GPU"
+};
 
 export type StartContainerFormProps = {
   maxCPUs: number;
@@ -21,13 +26,14 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
   state: StartContainerFormResult;
   constructor(props: StartContainerFormProps) {
     super(props);
+    const nodeStates = props.nodes.reduce((map, nodeName, index) => {
+      map[nodeName] = true;
+      return map;
+    }, {} as { [key: string]: boolean });
     this.state = {
       cpuCount: 1,
       gpuCount: 0,
-      nodeList: props.nodes.reduce((map, nodeName) => {
-        map[nodeName] = true;
-        return map;
-      }, {} as { [key: string]: boolean }),
+      nodeList: nodeStates,
       partition: "cpu",
       maxRuntime: props.maxRuntime
     };
@@ -57,34 +63,31 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
     event.preventDefault();
   }
 
-  render(): ReactElement<any, string | JSXElementConstructor<any>> {
+  render(): ReactElement {
     return (
       <form>
         <fieldset className="fieldset">
-          <legend>Resources</legend>
-          <h3>Partition</h3>
+          <legend className="form-legend">Resources</legend>
+          Partition
           <div className="form-group-inline">
-            <input
-              type="radio"
-              id="cpu"
-              name="partition"
-              value="cpu"
-              onChange={event => this.handleChange("partition", event)}
-            ></input>
-            <label htmlFor="cpu">CPU</label>
-            <input
-              type="radio"
-              id="gpu"
-              name="partition"
-              value="gpu"
-              onChange={event => this.handleChange("partition", event)}
-            ></input>
-            <label htmlFor="gpu">GPU</label>
+            {Object.entries(AVAILABLE_PARTITIONS).map(([key, name]) =>
+              <div key={key}>
+                <input
+                  type="radio"
+                  id={key}
+                  name="partition"
+                  value={key}
+                  onChange={event => this.handleChange("partition", event)}
+                  checked={this.state.partition === key}
+                ></input>
+                <label htmlFor={key}>{name}</label>
+              </div>
+            )}
           </div>
 
           <div className="form-group-inline">
             <label htmlFor="cpuCount">
-              <h3>CPU Count</h3>
+              CPU Count
             </label>
             <input
               id="cpuCount"
@@ -100,7 +103,7 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
 
           <div className="form-group-inline">
             <label htmlFor="gpuCount">
-              <h3>GPU Count</h3>
+              GPU Count
             </label>
             <input
               id="gpuCount"
@@ -118,7 +121,7 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
           <summary>Advanced Options</summary>
           <div className="form-group-inline">
             <label htmlFor="maxRuntime">
-              <h3>Maximum Runtime</h3>
+              Maximum Runtime
             </label>
             <input
               id="maxRuntime"
@@ -131,13 +134,12 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
             ></input>
           </div>
           <fieldset>
-            <legend>Nodelist:</legend>
+            <legend className="form-legend">Nodelist</legend>
             {Object.entries(this.state.nodeList).map(([nodeName, isActive]) => {
               return (
-                <div>
+                <div key={nodeName} className="form-group-inline">
                   <input
                     type="checkbox"
-                    key={nodeName}
                     name="nodeList"
                     checked={isActive}
                     onChange={event => this.handleNodelistChange(nodeName)}
