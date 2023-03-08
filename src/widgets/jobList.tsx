@@ -18,7 +18,6 @@ export type JobInfo = {
   time: string;
   node?: string;
   openUrl?: string;
-  healthcheckUrl?: string;
   copyUrl?: string;
   outputFile?: string;
   password?: string;
@@ -76,27 +75,7 @@ export class JobList extends React.Component<JobListProps> {
 
   refreshList() {
     requestAPI<JobInfo[]>("jobs").then(respose => {
-      const jobs = respose.map(job => {
-        const jobIndex = this.state.jobs.findIndex(oldJob => job.id == oldJob.id);
-        const oldJob = this.state.jobs[jobIndex];
-        if (job.healthcheckUrl) {
-          if (job.state == "RUNNING" && oldJob?.state != "RUNNING") {
-            // if the job is new and we are able to check if it is available we
-            // start in the building state
-            job.state = "BUILDING";
-          }
-          fetch(job.healthcheckUrl, { mode: "no-cors" }).then(_ => {
-            const newJobs = this.state.jobs;
-            newJobs[jobIndex].state = "RUNNING";
-            this.setState({
-              jobs: newJobs
-            })
-          }).catch(error =>
-            console.log(error));
-        }
-        return job;
-      });
-      this.setState({ jobs, message: null });
+      this.setState({ jobs: respose, message: null });
     }).catch(error => {
       this.setState({ message: "Failed to fetch available Jobs" });
       console.error("IAAI Launcher: failed to get list of jobs", error);
