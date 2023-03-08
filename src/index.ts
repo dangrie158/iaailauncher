@@ -11,7 +11,7 @@ import {
 } from "@jupyterlab/apputils";
 
 import { LauncherWidget } from "./widgets/launcher";
-import { LauncherIcon } from "./icons";
+import { LauncherIcon } from "./constants";
 
 
 /**
@@ -30,7 +30,7 @@ class IAAILauncherPlugin implements JupyterFrontEndPlugin<void> {
     restorer: ILayoutRestorer | null
   ) {
     const command = "iaailauncher:open";
-    const content = new LauncherWidget();
+    const content = new LauncherWidget(app);
     let widget = new MainAreaWidget({ content });
     app.commands.addCommand(command, {
       label: "Open IAAI Launcher",
@@ -42,7 +42,6 @@ class IAAILauncherPlugin implements JupyterFrontEndPlugin<void> {
         if (!tracker.has(widget!)) {
           // Track the state of the widget for later restoration
           tracker.add(widget!);
-          console.log(widget);
         }
         if (!widget!.isAttached) {
           // Attach the widget to the main work area if it"s not there

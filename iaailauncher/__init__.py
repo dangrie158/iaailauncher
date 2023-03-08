@@ -3,15 +3,11 @@ from .handlers import setup_handlers
 
 
 def _jupyter_labextension_paths():
-    return [{
-        "src": "labextension",
-        "dest": "iaailauncher"
-    }]
+    return [{"src": "labextension", "dest": "iaailauncher"}]
+
 
 def _jupyter_server_extension_points():
-    return [{
-        "module": "iaailauncher"
-    }]
+    return [{"module": "iaailauncher"}]
 
 
 def _load_jupyter_server_extension(server_app):

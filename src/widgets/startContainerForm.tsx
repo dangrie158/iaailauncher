@@ -1,13 +1,15 @@
 import React from "react";
-import { ReactWidget } from "@jupyterlab/apputils";
+import { ReactWidget, Notification } from "@jupyterlab/apputils";
+import { NOTIFICATION_DURATION } from "../constants";
 import { ReactElement } from "react";
+import { requestAPI } from "../handler";
 
 const AVAILABLE_PARTITIONS = {
   cpu: "CPU",
   gpu: "GPU"
 };
 
-export type StartContainerFormProps = {
+export type UserInfoReponse = {
   maxCPUs: number;
   maxGPUs: number;
   maxRuntime: string;
@@ -22,45 +24,72 @@ export type StartContainerFormResult = {
   maxRuntime: string;
 };
 
-class StartContainerForm extends React.Component<StartContainerFormProps> {
-  state: StartContainerFormResult;
-  constructor(props: StartContainerFormProps) {
+class StartContainerForm extends React.Component<{}> {
+  state: { result: StartContainerFormResult, userInfo: UserInfoReponse };
+  constructor(props: {}) {
     super(props);
-    const nodeStates = props.nodes.reduce((map, nodeName, index) => {
-      map[nodeName] = true;
-      return map;
-    }, {} as { [key: string]: boolean });
+
     this.state = {
-      cpuCount: 1,
-      gpuCount: 0,
-      nodeList: nodeStates,
-      partition: "cpu",
-      maxRuntime: props.maxRuntime
+      result: {
+        cpuCount: 1,
+        gpuCount: 0,
+        nodeList: {},
+        partition: "cpu",
+        maxRuntime: "1:00:00"
+      },
+      userInfo: {
+        maxCPUs: 4,
+        maxGPUs: 1,
+        maxRuntime: "1:00:00",
+        nodes: [],
+      }
     };
+
     this.handleChange = this.handleChange.bind(this);
     this.handleNodelistChange = this.handleNodelistChange.bind(this);
-    this.handleSubmit = this.handleSubmit.bind(this);
+
+    requestAPI<UserInfoReponse>("user_data").then(response => {
+      const nodeStates = response.nodes.reduce((map, nodeName, index) => {
+        map[nodeName] = true;
+        return map;
+      }, {} as { [key: string]: boolean });
+
+      this.setState({
+        userInfo: response,
+        result: {
+          ...this.state.result,
+          nodeList: nodeStates,
+          maxRuntime: response.maxRuntime
+        }
+      })
+    }).catch(error => {
+      Notification.error("Nutzer wurde nicht gefunden. Bitte beantragen sie einen Account.", { autoClose: NOTIFICATION_DURATION })
+      console.error("Failed to load User defaults", error)
+    });
   }
 
   handleChange(
     target: string,
     event: React.ChangeEvent<HTMLInputElement>
   ): void {
-    this.setState({ [target]: event.target.value });
-  }
-
-  handleNodelistChange(nodeName: string): void {
     this.setState({
-      nodeList: {
-        ...this.state.nodeList,
-        [nodeName]: !this.state.nodeList[nodeName]
+      result: {
+        ...this.state.result,
+        [target]: event.target.value
       }
     });
   }
 
-  handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
-    console.log(this.state);
-    event.preventDefault();
+  handleNodelistChange(nodeName: string): void {
+    this.setState({
+      result: {
+        ...this.state.result,
+        nodeList: {
+          ...this.state.result.nodeList,
+          [nodeName]: !this.state.result.nodeList[nodeName]
+        }
+      }
+    });
   }
 
   render(): ReactElement {
@@ -78,8 +107,8 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
                   name="partition"
                   value={key}
                   onChange={event => this.handleChange("partition", event)}
-                  checked={this.state.partition === key}
-                ></input>
+                  checked={this.state.result.partition === key}
+                />
                 <label htmlFor={key}>{name}</label>
               </div>
             )}
@@ -95,10 +124,10 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
               required={true}
               type="number"
               min="1"
-              max={this.props.maxCPUs}
-              value={this.state.cpuCount}
+              max={this.state.userInfo.maxCPUs}
+              value={this.state.result.cpuCount}
               onChange={event => this.handleChange("cpuCount", event)}
-            ></input>
+            />
           </div>
 
           <div className="form-group-inline">
@@ -110,11 +139,12 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
               name="gpuCount"
               required={true}
               type="number"
-              min="0"
-              max={this.props.maxGPUs}
-              value={this.state.gpuCount}
+              min={this.state.result.partition == "gpu" ? 1 : 0}
+              disabled={this.state.result.partition === "cpu"}
+              max={this.state.userInfo.maxGPUs}
+              value={this.state.result.partition === "gpu" ? this.state.result.gpuCount : 0}
               onChange={event => this.handleChange("gpuCount", event)}
-            ></input>
+            />
           </div>
         </fieldset>
         <details className="fieldset">
@@ -129,13 +159,13 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
               required={true}
               type="input"
               pattern="(?:\d+-)?(?:\d{1,2}:){0,2}(?:\d{1,2})"
-              value={this.state.maxRuntime}
+              value={this.state.result.maxRuntime}
               onChange={event => this.handleChange("maxRuntime", event)}
-            ></input>
+            />
           </div>
           <fieldset>
             <legend className="form-legend">Nodelist</legend>
-            {Object.entries(this.state.nodeList).map(([nodeName, isActive]) => {
+            {Object.entries(this.state.result.nodeList).map(([nodeName, isActive]) => {
               return (
                 <div key={nodeName} className="form-group-inline">
                   <input
@@ -143,7 +173,7 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
                     name="nodeList"
                     checked={isActive}
                     onChange={event => this.handleNodelistChange(nodeName)}
-                  ></input>
+                  />
                   <label htmlFor={nodeName}>{nodeName}</label>
                 </div>
               );
@@ -156,29 +186,21 @@ class StartContainerForm extends React.Component<StartContainerFormProps> {
 }
 
 export class StartContainerFormWidget extends ReactWidget {
-  props: StartContainerFormProps;
   form: React.RefObject<StartContainerForm>;
 
-  constructor(props: StartContainerFormProps) {
+  constructor() {
     super();
     this.id = "iaai-startform";
-    this.props = props;
     this.form = React.createRef();
   }
 
   getValue(): StartContainerFormResult {
-    return this.form.current!.state;
+    return this.form.current!.state.result;
   }
 
   render(): JSX.Element {
     return (
-      <StartContainerForm
-        nodes={this.props.nodes}
-        maxCPUs={this.props.maxCPUs}
-        maxGPUs={this.props.maxGPUs}
-        maxRuntime={this.props.maxRuntime}
-        ref={this.form}
-      />
+      <StartContainerForm ref={this.form} />
     );
   }
 }

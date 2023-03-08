@@ -53,6 +53,65 @@ summary {
     background-color: white;
 }
 
+.form-group-inline>* {
+    flex: 1
+}
+
 input:invalid {
     background-color: lightpink;
+}
+
+input:disabled {
+    background-color: lightgray;
+}
+
+.job-list {
+    width: 100%;
+    vertical-align: middle;
+    padding: 1rem;
+}
+
+.job-list thead th {
+    padding: 0.75rem;
+    vertical-align: bottom;
+    border-bottom: 1px solid lightslategray;
+}
+
+.job-list tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, .05);
+}
+
+.job-list td {
+    padding: 0.75rem;
+    border-collapse: collapse;
+}
+
+.text-monospace {
+    font-family: monospace;
+}
+
+.job-list td * {
+    padding: 0;
+    margin: 0;
+}
+
+.action-container {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.action,
+.action:hover {
+    width: 4em;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    text-decoration: none;
+}
+
+.action .action-label {
+    text-decoration: none;
+    font-size: 0.6em;
 }
