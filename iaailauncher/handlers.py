@@ -1,10 +1,11 @@
 import asyncio
+import getpass
 import json
 import logging
 import os
 from contextlib import suppress
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union
 
 import tornado
 from jupyter_server.base.handlers import APIHandler
@@ -22,7 +23,7 @@ class UserDataHandler(APIHandler):
         nodes = await Node.all()
         nodelist = [node.node_name for node in nodes]
 
-        username = os.getlogin()
+        username = getpass.getuser()
         users = await User.filter(user=username)
         if len(users) == 0:
             self.write_error(404)
@@ -64,14 +65,14 @@ class LauncherDataHandler(APIHandler):
 
 
 class JobsDataHandler(APIHandler):
-    def initialize(self, notebook_dir):
-        self.notebook_dir = notebook_dir
+    def initialize(self):
+        self.notebook_dir = os.environ.get("HOME")
 
     async def run_sbatch_command(
         cls,
         script_path: str,
         *arguments: str,
-    ) -> Tuple[int | None, str]:
+    ) -> Tuple[Union[int, None], str]:
         if config.SBATCH_PATH is None:
             raise ImportError("sbatch could not be found in path.")
 
@@ -90,7 +91,7 @@ class JobsDataHandler(APIHandler):
 
     @tornado.web.authenticated
     async def get(self):
-        username = os.getlogin()
+        username = getpass.getuser()
         job_list = [job for job in await Job.all() if job.username == username]
         job_list = sorted(job_list, key=lambda x: int(x.job_id), reverse=True)
         job_ids_with_launcher_info = [
@@ -107,7 +108,9 @@ class JobsDataHandler(APIHandler):
                 ) as launcher_file:
                     launcher_info = json.load(launcher_file)
 
-            output_file_path = Path(job.std_out).relative_to(self.notebook_dir)
+            output_file_path = None
+            if job.std_out:
+                output_file_path = str(Path(job.std_out).relative_to(self.notebook_dir))
             jobs.append(
                 {
                     "id": job.job_id,
@@ -117,7 +120,7 @@ class JobsDataHandler(APIHandler):
                     "state": job.job_state,
                     "time": job.run_time,
                     "node": job.node_list,
-                    "outputFile": str(output_file_path),
+                    "outputFile": output_file_path,
                     **launcher_info,
                 }
             )
@@ -182,14 +185,9 @@ def setup_handlers(web_app):
     base_url = web_app.settings["base_url"]
     # we need to enable hidden file access to be able to open logs
     web_app.settings["contents_manager"].allow_hidden = True
-    notebook_dir = web_app.settings["config"]["ServerApp"]["root_dir"]
     handlers = [
         (url_path_join(base_url, "iaailauncher", "user_data"), UserDataHandler),
         (url_path_join(base_url, "iaailauncher", "launchers"), LauncherDataHandler),
-        (
-            url_path_join(base_url, "iaailauncher", "jobs"),
-            JobsDataHandler,
-            {"notebook_dir": notebook_dir},
-        ),
+        (url_path_join(base_url, "iaailauncher", "jobs"), JobsDataHandler),
     ]
     web_app.add_handlers(host_pattern, handlers)
