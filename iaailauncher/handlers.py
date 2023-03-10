@@ -26,7 +26,8 @@ class UserDataHandler(APIHandler):
         username = getpass.getuser()
         users = await User.filter(user=username)
         if len(users) == 0:
-            self.write_error(404)
+            self.set_status(404)
+            self.finish("Current User has no Slurm account")
             return
 
         user = users[0]
@@ -158,14 +159,15 @@ class JobsDataHandler(APIHandler):
             "--partition",
             target_partition,
             "--cpus-per-task",
-            str(job_spec.get("cpuCount")),
+            str(job_spec.get("cpuCount")).strip(),
             "--time",
-            str(job_spec.get("maxRuntime")),
+            str(job_spec.get("maxRuntime")).strip(),
             "--output",
-            str(output_path),
-            "--exclude",
-            ",".join(node_excludelist),
+            str(output_path).strip(),
         ]
+
+        if len(node_excludelist) > 0:
+            arguments += ["--exclude", ",".join(node_excludelist)]
 
         if target_partition == "gpu":
             arguments += ["--gres", f"gpu:{job_spec.get('gpuCount')}"]
@@ -173,7 +175,8 @@ class JobsDataHandler(APIHandler):
         exit_code, stdout = await self.run_sbatch_command(str(script_path), *arguments)
         if exit_code != 0:
             logger.error(stdout)
-            self.send_error(500)
+            self.set_status(500)
+            self.finish(stdout)
             return
 
         self.finish(stdout)

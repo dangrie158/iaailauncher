@@ -63,8 +63,8 @@ export class LauncherWidget extends ReactWidget {
         requestAPI("jobs", { method: "POST", body: JSON.stringify(requestBody) }).then(response => {
           Notification.info("Job Scheduled", { autoClose: NOTIFICATION_DURATION });
         }).catch(error => {
-          Notification.error("Failed to Schedule Job", { autoClose: NOTIFICATION_DURATION });
-          console.error(error);
+          const errorMessage = String(error).trim();
+          Notification.error(`Failed to Schedule Job:\n ${errorMessage}`, { autoClose: NOTIFICATION_DURATION });
         });
       }
     });
