@@ -8,6 +8,7 @@ const AVAILABLE_PARTITIONS = {
   cpu: "CPU",
   gpu: "GPU"
 };
+const DEFAULT_RUNTIME = "0-4:00:00";
 
 export type UserInfoReponse = {
   maxCPUs: number;
@@ -32,15 +33,15 @@ class StartContainerForm extends React.Component<{}> {
     this.state = {
       result: {
         cpuCount: 1,
-        gpuCount: 0,
+        gpuCount: 1,
         nodeList: {},
         partition: "cpu",
-        maxRuntime: "1:00:00"
+        maxRuntime: DEFAULT_RUNTIME
       },
       userInfo: {
         maxCPUs: 4,
         maxGPUs: 1,
-        maxRuntime: "1:00:00",
+        maxRuntime: DEFAULT_RUNTIME,
         nodes: [],
       }
     };
@@ -59,7 +60,7 @@ class StartContainerForm extends React.Component<{}> {
         result: {
           ...this.state.result,
           nodeList: nodeStates,
-          maxRuntime: response.maxRuntime
+          maxRuntime: response.maxRuntime || DEFAULT_RUNTIME
         }
       })
     }).catch(error => {
@@ -124,8 +125,9 @@ class StartContainerForm extends React.Component<{}> {
               required={true}
               type="number"
               min="1"
+              disabled={this.state.result.partition == "gpu"}
               max={this.state.userInfo.maxCPUs}
-              value={this.state.result.cpuCount}
+              value={this.state.result.partition === "cpu" ? this.state.result.cpuCount : this.state.result.gpuCount * 4}
               onChange={event => this.handleChange("cpuCount", event)}
             />
           </div>
@@ -195,7 +197,14 @@ export class StartContainerFormWidget extends ReactWidget {
   }
 
   getValue(): StartContainerFormResult {
-    return this.form.current!.state.result;
+    let formState = this.form.current!.state.result;
+    if (formState.partition == "gpu") {
+      formState.cpuCount = formState.gpuCount * 4;
+    } else {
+      formState.gpuCount = 0;
+    }
+
+    return formState;
   }
 
   render(): JSX.Element {
