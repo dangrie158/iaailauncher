@@ -5,7 +5,7 @@ import logging
 import os
 from contextlib import suppress
 from pathlib import Path
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 import tornado
 from jupyter_server.base.handlers import APIHandler
@@ -58,9 +58,7 @@ class LauncherDataHandler(APIHandler):
         with open(config.LAUNCHERS_INFO_FILE) as launchers_file:
             launchers = json.load(launchers_file)
 
-        launchersWithImageData = {
-            launcher: self.load_image_data(data) for launcher, data in launchers.items()
-        }
+        launchersWithImageData = {launcher: self.load_image_data(data) for launcher, data in launchers.items()}
 
         self.finish(json.dumps(launchersWithImageData))
 
@@ -72,7 +70,8 @@ class JobsDataHandler(APIHandler):
     async def run_sbatch_command(
         cls,
         script_path: str,
-        *arguments: str,
+        arguments: List[str],
+        script_arguments: List[str],
     ) -> Tuple[Union[int, None], str]:
         if config.SBATCH_PATH is None:
             raise ImportError("sbatch could not be found in path.")
@@ -82,6 +81,7 @@ class JobsDataHandler(APIHandler):
             *arguments,
             "--parsable",
             script_path,
+            *script_arguments,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -95,18 +95,14 @@ class JobsDataHandler(APIHandler):
         username = getpass.getuser()
         job_list = [job for job in await Job.all() if job.username == username]
         job_list = sorted(job_list, key=lambda x: int(x.job_id), reverse=True)
-        job_ids_with_launcher_info = [
-            file.stem for file in config.LAUNCHERS_RUN_DIR.iterdir()
-        ]
+        job_ids_with_launcher_info = [file.stem for file in config.LAUNCHERS_RUN_DIR.iterdir()]
 
         jobs = []
         for job in job_list:
             # get the information about the deployment if this job is launched by a launcher script
             launcher_info = {}
             if job.job_id in job_ids_with_launcher_info:
-                with open(
-                    config.LAUNCHERS_RUN_DIR / f"{job.job_id}.json"
-                ) as launcher_file:
+                with open(config.LAUNCHERS_RUN_DIR / f"{job.job_id}.json") as launcher_file:
                     launcher_info = json.load(launcher_file)
 
             output_file_path = None
@@ -141,11 +137,8 @@ class JobsDataHandler(APIHandler):
         job_spec = self.get_json_body()
 
         target_partition = job_spec.get("partition")
-        available_nodes = [
-            node.node_name
-            for node in await Node.all()
-            if target_partition in node.partitions
-        ]
+        run_as_root = job_spec.get("asRoot", False)
+        available_nodes = [node.node_name for node in await Node.all() if target_partition in node.partitions]
 
         output_path = config.LAUNCHERS_VAR_DIR / "%A.log"
 
@@ -155,6 +148,7 @@ class JobsDataHandler(APIHandler):
             for node_name, active in job_spec.get("nodeList").items()
             if not active or node_name not in available_nodes
         ]
+
         arguments = [
             "--partition",
             target_partition,
@@ -172,7 +166,11 @@ class JobsDataHandler(APIHandler):
         if target_partition == "gpu":
             arguments += ["--gres", f"gpu:{job_spec.get('gpuCount')}"]
 
-        exit_code, stdout = await self.run_sbatch_command(str(script_path), *arguments)
+        script_arguments = []
+        if run_as_root:
+            script_arguments += ["--root"]
+
+        exit_code, stdout = await self.run_sbatch_command(str(script_path), arguments, script_arguments)
         if exit_code != 0:
             logger.error(stdout)
             self.set_status(500)

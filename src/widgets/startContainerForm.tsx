@@ -18,10 +18,11 @@ export type UserInfoReponse = {
 };
 
 export type StartContainerFormResult = {
+  partition: "cpu" | "gpu";
   cpuCount: number;
   gpuCount: number;
+  asRoot: boolean;
   nodeList: { [key: string]: boolean };
-  partition: "cpu" | "gpu";
   maxRuntime: string;
 };
 
@@ -32,10 +33,11 @@ class StartContainerForm extends React.Component<{}> {
 
     this.state = {
       result: {
+        partition: "cpu",
         cpuCount: 1,
         gpuCount: 1,
+        asRoot: false,
         nodeList: {},
-        partition: "cpu",
         maxRuntime: DEFAULT_RUNTIME
       },
       userInfo: {
@@ -163,6 +165,18 @@ class StartContainerForm extends React.Component<{}> {
               pattern="(?:\d+-)?(?:\d{1,2}:){0,2}(?:\d{1,2})"
               value={this.state.result.maxRuntime}
               onChange={event => this.handleChange("maxRuntime", event)}
+            />
+          </div>
+          <div className="form-group-inline">
+            <label htmlFor="asRoot">
+              Run as Root?
+            </label>
+            <input
+              id="asRoot"
+              name="asRoot"
+              type="checkbox"
+              checked={this.state.result.asRoot}
+              onChange={event => this.handleChange("asRoot", event)}
             />
           </div>
           <fieldset>
